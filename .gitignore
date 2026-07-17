@@ -1,0 +1,30 @@
+# Android Studio and local SDK state
+*.iml
+.gradle/
+.kotlin/
+.idea/
+local.properties
+captures/
+.cxx/
+.externalNativeBuild/
+
+# Build outputs and install packages
+build/
+**/build/
+*.apk
+*.aab
+*.ap_
+*.idsig
+
+# Local signing material
+*.jks
+*.keystore
+keystore.properties
+
+# Local review artifacts and logs
+.impeccable/
+*.log
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

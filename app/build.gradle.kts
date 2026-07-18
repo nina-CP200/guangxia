@@ -5,6 +5,17 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val releaseStoreFile = providers.environmentVariable("GUANGXIA_RELEASE_STORE_FILE").orNull
+val releaseStorePassword = providers.environmentVariable("GUANGXIA_RELEASE_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("GUANGXIA_RELEASE_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("GUANGXIA_RELEASE_KEY_PASSWORD").orNull
+val releaseSigningReady = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.guangxia.filmtools"
     compileSdk = 35
@@ -13,11 +24,26 @@ android {
         applicationId = "com.guangxia.filmtools"
         minSdk = 23
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.2.11"
+        versionCode = 20
+        versionName = "1.2.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = file(checkNotNull(releaseStoreFile))
+                storePassword = checkNotNull(releaseStorePassword)
+                keyAlias = checkNotNull(releaseKeyAlias)
+                keyPassword = checkNotNull(releaseKeyPassword)
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
     }
 
     buildTypes {
@@ -31,6 +57,9 @@ android {
         }
         release {
             isMinifyEnabled = false
+            if (releaseSigningReady) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

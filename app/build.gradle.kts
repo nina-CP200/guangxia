@@ -24,8 +24,8 @@ android {
         applicationId = "com.guangxia.filmtools"
         minSdk = 23
         targetSdk = 35
-        versionCode = 20
-        versionName = "1.2.12"
+        versionCode = 21
+        versionName = "1.2.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

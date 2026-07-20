@@ -9,7 +9,7 @@
 
   <p>
     <a href="https://github.com/nina-CP200/guangxia/releases/latest">下载最新版 APK</a>
-    · v1.2.12
+    · v1.2.13
     · Android 6.0+
     · 完全离线
   </p>
@@ -75,11 +75,11 @@
 
 ## 安装
 
-从 [Releases](https://github.com/nina-CP200/guangxia/releases/latest) 下载 `GuangXia-1.2.12.apk`，在 Android 手机上允许“安装未知应用”后打开安装即可。
+从 [Releases](https://github.com/nina-CP200/guangxia/releases/latest) 下载 `GuangXia-1.2.13.apk`，在 Android 手机上允许“安装未知应用”后打开安装即可。
 
 1.2.12 是首个使用光匣正式密钥签名的版本。此前安装过 1.2.11 或更早 Debug 签名测试包的用户，需要先卸载旧版再安装；卸载应用会同时删除本地胶卷记录。后续正式版本可以直接覆盖升级。
 
-Xiaomi 15 的取景预览性能仍在持续验证，进展见 [Issue #1](https://github.com/nina-CP200/guangxia/issues/1)。
+Xiaomi 15 的取景预览问题已修复。
 
 <details>
 <summary>开发与构建</summary>
@@ -91,6 +91,6 @@ Xiaomi 15 的取景预览性能仍在持续验证，进展见 [Issue #1](https:/
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-项目使用 Kotlin、Jetpack Compose、CameraX、Camera2 Interop、Room 和 DataStore。当前 versionCode 为 20。
+项目使用 Kotlin、Jetpack Compose、CameraX、Camera2 Interop、Room 和 DataStore。当前 versionCode 为 21。
 
 </details>

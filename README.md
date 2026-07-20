@@ -1,14 +1,23 @@
-# 光匣
+<div align="center">
+  <img src="app/src/main/res/drawable/app_logo.png" alt="光匣 logo" width="180">
 
-### 为胶片摄影师准备的随身曝光工具
+  <h1>光匣</h1>
+
+  <p><strong>为胶片摄影师准备的随身曝光工具</strong></p>
+
+  <p>测光 · 闪光 · 胶卷备忘录</p>
+
+  <p>
+    <a href="https://github.com/nina-CP200/guangxia/releases/latest">下载最新版 APK</a>
+    · v1.2.12
+    · Android 6.0+
+    · 完全离线
+  </p>
+</div>
 
 出门拍胶片时，手机里不必再散落着测光表、计算器和备忘录。光匣把拍摄现场最常用的三件事放在一起：**测环境光、计算闪光功率、记住每台相机里装了什么胶卷。**
 
-它完全离线，不需要账号，也不会上传你的相机和胶卷记录。
-
-> 当前版本：**1.2.12** · 支持 Android 6.0 及以上
->
-> [下载最新版 APK](https://github.com/nina-CP200/guangxia/releases/latest)
+你的相机、胶卷和设置都只保存在设备本地，不需要账号，也不会上传任何记录。
 
 ## 拍摄时能做什么
 

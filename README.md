@@ -75,7 +75,7 @@
 
 ## 安装
 
-从 [Releases](https://github.com/nina-CP200/guangxia/releases/latest) 下载 `GuangXia-1.2.13.apk`，在 Android 手机上允许“安装未知应用”后打开安装即可。
+从 [Releases](https://github.com/nina-CP200/guangxia/releases/latest) 下载 `app-release.apk`，在 Android 手机上允许“安装未知应用”后打开安装即可。
 
 1.2.12 是首个使用光匣正式密钥签名的版本。此前安装过 1.2.11 或更早 Debug 签名测试包的用户，需要先卸载旧版再安装；卸载应用会同时删除本地胶卷记录。后续正式版本可以直接覆盖升级。
 

@@ -5,11 +5,11 @@
 
   <p><strong>为胶片摄影师准备的随身曝光工具</strong></p>
 
-  <p>测光 · 闪光 · 胶卷备忘录</p>
+  <p>测光 · 闪光 · 倒易律 · 胶卷备忘录</p>
 
   <p>
     <a href="https://github.com/nina-CP200/guangxia/releases/latest">下载最新版 APK</a>
-    · v1.2.13
+    · v1.3.0
     · Android 6.0+
     · 完全离线
   </p>
@@ -42,6 +42,17 @@
 - GN 和拍摄 ISO 可以锁定，减少现场误操作。
 
 计算以直闪、厂商标称全功率 GN 为基准。柔光箱、跳闪、滤色片和环境反射都会造成实际光损，重要拍摄建议配合试拍或闪光测光表确认。
+
+### 倒易律
+
+为长曝光胶片计算倒易失效补偿，并在彩色反转片资料完整时给出色彩补偿滤镜提示。
+
+- Kodak Tri-X 320/400、T-MAX 100/400 使用 Kodak 官方长曝光表。
+- Kodak Portra 400、Ektar 100 提供明确标注的玩家实测估算；Portra 160/800、Gold 200、Ultramax 400、ColorPlus 200 等资料不足的型号只显示提示，不强行套用参数。
+- Fujifilm US 资料中的 Velvia 50、Provia 100F 等反转片支持曝光和色彩滤镜提示；美版资料中的其他型号会按资料完整度标记。
+- 每个结果都会标注“官方资料”“玩家估算”或“资料提示”，自定义胶卷可输入 P 参数和起始修正时间。
+
+彩色胶片的倒易失效还会受到乳剂版本、冲洗、温度和扫描/放大流程影响。玩家估算只适合作为试拍起点，重要拍摄应包围曝光。
 
 ### 胶卷备忘录
 
@@ -91,6 +102,6 @@ Xiaomi 15 的取景预览问题已修复。
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-项目使用 Kotlin、Jetpack Compose、CameraX、Camera2 Interop、Room 和 DataStore。当前 versionCode 为 21。
+项目使用 Kotlin、Jetpack Compose、CameraX、Camera2 Interop、Room 和 DataStore。当前 versionCode 为 22。
 
 </details>

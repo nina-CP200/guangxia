@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Camera
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -32,6 +33,7 @@ import androidx.navigation.compose.rememberNavController
 import com.guangxia.filmtools.ui.screens.FilmScreen
 import com.guangxia.filmtools.ui.screens.FlashScreen
 import com.guangxia.filmtools.ui.screens.MeterScreen
+import com.guangxia.filmtools.ui.screens.ReciprocityScreen
 import com.guangxia.filmtools.ui.theme.Carbon
 import com.guangxia.filmtools.ui.theme.FilmAccent
 import com.guangxia.filmtools.ui.theme.FlashAccent
@@ -45,6 +47,7 @@ private data class Destination(val route: String, val label: String, val icon: I
 private val destinations = listOf(
     Destination("meter", "测光", Icons.Rounded.LightMode, MeterAccent),
     Destination("flash", "闪光", Icons.Rounded.FlashOn, FlashAccent),
+    Destination("reciprocity", "倒易律", Icons.Rounded.Timer, MeterAccent),
     Destination("film", "胶卷", Icons.Rounded.Camera, FilmAccent),
 )
 
@@ -94,6 +97,7 @@ fun GuangXiaApp(viewModel: MainViewModel) {
                     ToolAccent(MeterAccent) { MeterScreen(viewModel, settings, reading, cameraError) }
                 }
                 composable("flash") { ToolAccent(FlashAccent) { FlashScreen(settings.distanceUnit, viewModel::setDistanceUnit) } }
+                composable("reciprocity") { ToolAccent(MeterAccent) { ReciprocityScreen() } }
                 composable("film") { ToolAccent(FilmAccent) { FilmScreen(cameras, viewModel) } }
             }
         }

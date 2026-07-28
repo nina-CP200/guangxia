@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import com.guangxia.filmtools.ui.theme.ControlShape
 import com.guangxia.filmtools.ui.theme.InstrumentShape
@@ -31,7 +33,7 @@ import com.guangxia.filmtools.ui.theme.PanelSoft
 @Composable
 fun ScreenHeader(title: String, subtitle: String, trailing: (@Composable () -> Unit)? = null) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 18.dp),
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -93,4 +95,24 @@ fun KeyValue(label: String, value: String, modifier: Modifier = Modifier) {
         Text(label.uppercase(), color = Muted, style = MaterialTheme.typography.labelLarge)
         Text(value, color = accent, style = MaterialTheme.typography.headlineMedium)
     }
+}
+
+@Composable
+fun GuangXiaDialog(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: @Composable (() -> Unit)? = null,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = Panel,
+        tonalElevation = 0.dp,
+        title = title,
+        text = text,
+        confirmButton = confirmButton,
+        dismissButton = dismissButton,
+    )
 }

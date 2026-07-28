@@ -25,4 +25,16 @@ class ExposureCalculatorTest {
         val iso400 = ExposureCalculator.shutterFor(10.0, 8.0, 400)
         assertTrue(iso400.snappedValue < iso100.snappedValue)
     }
+
+    @Test fun `region luminance applies one stop per doubling`() {
+        val base = ExposureCalculator.ev100(8.0, 1.0 / 125.0, 100)
+        val brightRegion = ExposureCalculator.ev100(8.0, 1.0 / 125.0, 100, 236.0)
+        assertEquals(1.0, brightRegion - base, 0.01)
+    }
+
+    @Test fun `invalid region luminance leaves camera ev unchanged`() {
+        val base = ExposureCalculator.ev100(8.0, 1.0 / 125.0, 100)
+        assertEquals(base, ExposureCalculator.ev100(8.0, 1.0 / 125.0, 100, 0.0), 0.0)
+        assertEquals(base, ExposureCalculator.ev100(8.0, 1.0 / 125.0, 100, Double.NaN), 0.0)
+    }
 }

@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,11 +67,12 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -118,6 +120,8 @@ fun MeterScreen(viewModel: MainViewModel, settings: AppSettings, reading: MeterR
     var isoLocked by rememberSaveable { mutableStateOf(true) }
     var calibrationExpanded by rememberSaveable { mutableStateOf(false) }
     var calibration by remember(settings.evCalibration) { mutableDoubleStateOf(settings.evCalibration) }
+    var exposurePointX by rememberSaveable { mutableFloatStateOf(0.5f) }
+    var exposurePointY by rememberSaveable { mutableFloatStateOf(0.5f) }
 
     val result = reading?.let {
         if (priority == ExposurePriority.APERTURE) ExposureCalculator.shutterFor(it.ev100, ExposureCalculator.apertures[apertureIndex], filmIso)
@@ -142,14 +146,26 @@ fun MeterScreen(viewModel: MainViewModel, settings: AppSettings, reading: MeterR
                         .background(Panel),
                 ) {
                     when {
-                        hasPermission -> CameraPreview(settings.meteringMode, locked, viewModel)
+                        hasPermission -> CameraPreview(
+                            mode = settings.meteringMode,
+                            locked = locked,
+                            viewModel = viewModel,
+                            exposurePointX = exposurePointX,
+                            exposurePointY = exposurePointY,
+                            onExposurePointChange = { x, y ->
+                                exposurePointX = x
+                                exposurePointY = y
+                            },
+                        )
                         else -> PermissionPanel(
                             onRequest = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                             onSettings = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) },
                         )
                     }
                     if (hasPermission) CameraCornerMask()
-                    if (hasPermission && settings.meteringMode == MeteringMode.CENTER) CenterReticle()
+                    if (hasPermission && settings.meteringMode == MeteringMode.CENTER) {
+                        CenterReticle(exposurePointX, exposurePointY)
+                    }
                     Row(
                         Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -158,7 +174,7 @@ fun MeterScreen(viewModel: MainViewModel, settings: AppSettings, reading: MeterR
                         StatusBadge(reading, cameraError)
                         IconButton(
                             onClick = { locked = !locked; viewModel.setExposureLocked(locked) },
-                            modifier = Modifier.background(Carbon.copy(alpha = 0.82f), CircleShape),
+                            modifier = Modifier.background(Carbon.copy(alpha = 0.62f), CircleShape),
                         ) {
                             Icon(
                                 if (locked) Icons.Rounded.Lock else Icons.Rounded.LockOpen,
@@ -169,10 +185,13 @@ fun MeterScreen(viewModel: MainViewModel, settings: AppSettings, reading: MeterR
                     }
                 }
                 SegmentSwitch(
-                    options = listOf(MeteringMode.AVERAGE to "全局平均", MeteringMode.CENTER to "中心点"),
+                    options = listOf(MeteringMode.AVERAGE to "全局平均", MeteringMode.CENTER to "指定区域"),
                     selected = settings.meteringMode,
                     onSelect = viewModel::setMeteringMode,
                 )
+                if (settings.meteringMode == MeteringMode.CENTER) {
+                    Text("点击取景画面选择曝光区域", color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
                 MeterReadoutDeck(reading, result, priority)
             }
         }
@@ -278,7 +297,7 @@ private fun MeterReadoutDeck(reading: MeterReading?, result: ExposureResult?, pr
                 Text(
                     result?.displayValue ?: "--",
                     color = Paper,
-                    style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.displayLarge,
                     maxLines = 1,
                 )
             }
@@ -287,7 +306,7 @@ private fun MeterReadoutDeck(reading: MeterReading?, result: ExposureResult?, pr
                 Text(
                     reading?.ev100?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
                     color = accent,
-                    style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FontFamily.Monospace),
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 42.sp),
                 )
             }
         }
@@ -329,7 +348,14 @@ private fun ExposureDeviationScale(deviation: Double?) {
 }
 
 @Composable
-private fun CameraPreview(mode: MeteringMode, locked: Boolean, viewModel: MainViewModel) {
+private fun CameraPreview(
+    mode: MeteringMode,
+    locked: Boolean,
+    viewModel: MainViewModel,
+    exposurePointX: Float,
+    exposurePointY: Float,
+    onExposurePointChange: (Float, Float) -> Unit,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember {
@@ -371,7 +397,28 @@ private fun CameraPreview(mode: MeteringMode, locked: Boolean, viewModel: MainVi
     }
     LaunchedEffect(mode) { controller.setMode(mode) }
     LaunchedEffect(locked) { controller.setExposureLocked(locked) }
-    AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+    LaunchedEffect(exposurePointX, exposurePointY) {
+        controller.setExposurePoint(exposurePointX, exposurePointY)
+    }
+    Box(
+        Modifier.fillMaxSize(),
+    ) {
+        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(mode, locked) {
+                    if (mode == MeteringMode.CENTER && !locked) {
+                        detectTapGestures { offset ->
+                            val x = (offset.x / size.width).coerceIn(0f, 1f)
+                            val y = (offset.y / size.height).coerceIn(0f, 1f)
+                            controller.setExposurePoint(x, y)
+                            onExposurePointChange(x, y)
+                        }
+                    }
+                },
+        )
+    }
 }
 
 @Composable
@@ -388,15 +435,16 @@ private fun CameraCornerMask() {
 }
 
 @Composable
-private fun CenterReticle() {
+private fun CenterReticle(pointX: Float, pointY: Float) {
     val accent = LocalToolAccent.current
     Canvas(Modifier.fillMaxSize()) {
         val radius = size.minDimension * 0.075f
-        drawCircle(accent, radius, center, style = Stroke(1.5.dp.toPx()))
-        drawLine(accent, Offset(center.x - radius - 14.dp.toPx(), center.y), Offset(center.x - radius / 2, center.y), 1.5.dp.toPx(), StrokeCap.Round)
-        drawLine(accent, Offset(center.x + radius / 2, center.y), Offset(center.x + radius + 14.dp.toPx(), center.y), 1.5.dp.toPx(), StrokeCap.Round)
-        drawLine(accent, Offset(center.x, center.y - radius - 14.dp.toPx()), Offset(center.x, center.y - radius / 2), 1.5.dp.toPx(), StrokeCap.Round)
-        drawLine(accent, Offset(center.x, center.y + radius / 2), Offset(center.x, center.y + radius + 14.dp.toPx()), 1.5.dp.toPx(), StrokeCap.Round)
+        val point = Offset(size.width * pointX, size.height * pointY)
+        drawCircle(accent, radius, point, style = Stroke(1.5.dp.toPx()))
+        drawLine(accent, Offset(point.x - radius - 14.dp.toPx(), point.y), Offset(point.x - radius / 2, point.y), 1.5.dp.toPx(), StrokeCap.Round)
+        drawLine(accent, Offset(point.x + radius / 2, point.y), Offset(point.x + radius + 14.dp.toPx(), point.y), 1.5.dp.toPx(), StrokeCap.Round)
+        drawLine(accent, Offset(point.x, point.y - radius - 14.dp.toPx()), Offset(point.x, point.y - radius / 2), 1.5.dp.toPx(), StrokeCap.Round)
+        drawLine(accent, Offset(point.x, point.y + radius / 2), Offset(point.x, point.y + radius + 14.dp.toPx()), 1.5.dp.toPx(), StrokeCap.Round)
     }
 }
 

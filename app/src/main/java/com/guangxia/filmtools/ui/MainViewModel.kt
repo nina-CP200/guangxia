@@ -42,9 +42,16 @@ class MainViewModel(
         if (!shouldAcceptCameraReading(exposureLocked, _meterReading.value != null)) return
         if (samples.size == 7) samples.removeFirst()
         samples.addLast(raw)
-        val ordered = samples.sortedBy { ExposureCalculator.ev100(it.aperture, it.exposureSeconds, it.iso) }
+        val ordered = samples.sortedBy {
+            ExposureCalculator.ev100(it.aperture, it.exposureSeconds, it.iso, it.regionLuminance)
+        }
         val middle = ordered[ordered.size / 2]
-        val rawEv = ExposureCalculator.ev100(middle.aperture, middle.exposureSeconds, middle.iso)
+        val rawEv = ExposureCalculator.ev100(
+            middle.aperture,
+            middle.exposureSeconds,
+            middle.iso,
+            middle.regionLuminance,
+        )
         _meterReading.value = MeterReading(
             aperture = middle.aperture,
             exposureSeconds = middle.exposureSeconds,

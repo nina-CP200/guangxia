@@ -68,6 +68,7 @@ fun GuangXiaTheme(content: @Composable () -> Unit) {
         colorScheme = colors,
         typography = MaterialTheme.typography.copy(
             displayLarge = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Normal, fontSize = 50.sp, lineHeight = 56.sp, letterSpacing = (-1).sp),
+            displayMedium = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold, fontSize = 38.sp, lineHeight = 46.sp, letterSpacing = (-0.5).sp),
             headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 41.sp, letterSpacing = (-0.7).sp),
             headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.2).sp),
             titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp),

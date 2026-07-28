@@ -1,6 +1,7 @@
 package com.guangxia.filmtools.camera
 
 import android.content.Context
+import android.graphics.PointF
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
@@ -17,6 +18,8 @@ import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.SessionConfig
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
@@ -30,12 +33,16 @@ import com.guangxia.filmtools.core.MeteringMode
 import com.guangxia.filmtools.core.ReadingStatus
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 data class RawCameraReading(
     val aperture: Double,
     val exposureSeconds: Double,
     val iso: Int,
     val status: ReadingStatus,
+    val regionLuminance: Double? = null,
 )
 
 @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
@@ -52,7 +59,12 @@ class CameraMeterController(
     private var preview: Preview? = null
     private var sessionConfig: SessionConfig? = null
     private var activeFrameRateRange: Range<Int>? = null
+    private var imageAnalysis: ImageAnalysis? = null
+    private var analysisExecutor: java.util.concurrent.ExecutorService? = null
     @Volatile private var fallbackAperture: Float? = null
+    private val exposureHistory = java.util.ArrayDeque<LatestExposure>()
+    @Volatile private var exposurePointX = 0.5f
+    @Volatile private var exposurePointY = 0.5f
     private var mode: MeteringMode = MeteringMode.AVERAGE
     @Volatile private var exposureLocked = false
     @Volatile private var started = false
@@ -114,9 +126,6 @@ class CameraMeterController(
             )
             extender.setSessionCaptureCallback(object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult) {
-                    val now = SystemClock.elapsedRealtimeNanos()
-                    if (now - lastReadingDispatchNanos < READING_DISPATCH_INTERVAL_NANOS) return
-                    lastReadingDispatchNanos = now
                     val aperture = result.get(CaptureResult.LENS_APERTURE)
                         ?: fallbackAperture
                         ?: return
@@ -126,21 +135,35 @@ class CameraMeterController(
                         ?: return
                     if (exposureNanos <= 0 || iso <= 0 || aperture <= 0f) return
                     val seconds = exposureNanos / 1_000_000_000.0
-                    val status = when {
-                        seconds >= 0.5 || iso >= 6400 -> ReadingStatus.TOO_DARK
-                        seconds <= 1.0 / 16_000.0 && iso <= 64 -> ReadingStatus.TOO_BRIGHT
-                        else -> ReadingStatus.NORMAL
+                    val exposure = LatestExposure(
+                        aperture = aperture.toDouble(),
+                        exposureSeconds = seconds,
+                        iso = iso,
+                        timestampNanos = result.get(CaptureResult.SENSOR_TIMESTAMP) ?: 0L,
+                    )
+                    synchronized(exposureHistory) {
+                        exposureHistory.addLast(exposure)
+                        while (exposureHistory.size > 12) exposureHistory.removeFirst()
                     }
-                    onReading(RawCameraReading(aperture.toDouble(), seconds, iso, status))
                 }
             })
             val builtPreview = builder.build().also { it.surfaceProvider = previewView.surfaceProvider }
+            val builtAnalysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(640, 480))
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+            val executor = Executors.newSingleThreadExecutor { runnable ->
+                Thread(runnable, "GuangXia-MeterAnalysis").apply { isDaemon = true }
+            }
+            builtAnalysis.setAnalyzer(executor, ::analyzeImage)
+            imageAnalysis = builtAnalysis
+            analysisExecutor = executor
             val selectorBuilder = CameraSelector.Builder()
                 .addCameraFilter { cameraInfos ->
                     cameraInfos.filter { Camera2CameraInfo.from(it).cameraId == logicalCameraId }
                 }
             val lockedSelector = selectorBuilder.build()
-            val baseSessionConfig = SessionConfig.Builder(builtPreview).build()
+            val baseSessionConfig = SessionConfig.Builder(builtPreview, builtAnalysis).build()
             val guaranteedRanges = runCatching {
                 cameraProvider.getCameraInfo(lockedSelector)
                     .getSupportedFrameRateRanges(baseSessionConfig)
@@ -151,7 +174,7 @@ class CameraMeterController(
                 ?.let(::selectSmoothPreviewFpsRange)
                 ?.let { Range(it.first, it.last) }
                 ?: setup.preferredFpsRange
-            val configuredSession = SessionConfig.Builder(builtPreview).apply {
+            val configuredSession = SessionConfig.Builder(builtPreview, builtAnalysis).apply {
                 selectedRange?.let(::setFrameRateRange)
             }.build()
             cameraProvider.unbindAll()
@@ -180,12 +203,26 @@ class CameraMeterController(
         previewView.post { applyMeteringMode() }
     }
 
+    fun setExposurePoint(x: Float, y: Float) {
+        exposurePointX = x.coerceIn(0f, 1f)
+        exposurePointY = y.coerceIn(0f, 1f)
+        if (mode == MeteringMode.CENTER) previewView.post { applyMeteringMode() }
+    }
+
     private fun applyMeteringMode() {
         val control = camera?.cameraControl ?: return
         if (mode == MeteringMode.AVERAGE) {
             control.cancelFocusAndMetering()
         } else {
-            val point = previewView.meteringPointFactory.createPoint(0.5f, 0.5f, 0.15f)
+            if (previewView.width <= 0 || previewView.height <= 0) {
+                previewView.post { applyMeteringMode() }
+                return
+            }
+            val point = previewView.meteringPointFactory.createPoint(
+                previewView.width * exposurePointX,
+                previewView.height * exposurePointY,
+                0.15f,
+            )
             val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AE)
                 .disableAutoCancel()
                 .build()
@@ -221,15 +258,120 @@ class CameraMeterController(
         sessionConfig?.let { provider?.unbind(it) } ?: preview?.let { provider?.unbind(it) }
         sessionConfig = null
         preview = null
+        imageAnalysis = null
         camera = null
         activeFrameRateRange = null
         fallbackAperture = null
+        synchronized(exposureHistory) { exposureHistory.clear() }
+        analysisExecutor?.shutdownNow()
+        analysisExecutor = null
         lastReadingDispatchNanos = 0L
+    }
+
+    private fun analyzeImage(image: ImageProxy) {
+        try {
+            val exposure = exposureFor(image.imageInfo.timestamp) ?: return
+            val now = SystemClock.elapsedRealtimeNanos()
+            if (now - lastReadingDispatchNanos < READING_DISPATCH_INTERVAL_NANOS) return
+            val luminance = sampleMeteringRegion(image)
+            if (!luminance.isFinite() || luminance <= 0.0) return
+            lastReadingDispatchNanos = now
+            val status = when {
+                exposure.exposureSeconds >= 0.5 || exposure.iso >= 6400 -> ReadingStatus.TOO_DARK
+                exposure.exposureSeconds <= 1.0 / 16_000.0 && exposure.iso <= 64 -> ReadingStatus.TOO_BRIGHT
+                else -> ReadingStatus.NORMAL
+            }
+            onReading(
+                RawCameraReading(
+                    aperture = exposure.aperture,
+                    exposureSeconds = exposure.exposureSeconds,
+                    iso = exposure.iso,
+                    status = status,
+                    regionLuminance = luminance,
+                )
+            )
+        } finally {
+            image.close()
+        }
+    }
+
+    private fun sampleMeteringRegion(image: ImageProxy): Double {
+        val width = image.width
+        val height = image.height
+        val point = displayToImagePoint(
+            exposurePointX,
+            exposurePointY,
+            image.imageInfo.rotationDegrees,
+        )
+        val rect = if (mode == MeteringMode.AVERAGE) {
+            android.graphics.Rect(0, 0, width, height)
+        } else {
+            val halfWidth = width * 0.075f
+            val halfHeight = height * 0.075f
+            android.graphics.Rect(
+                (point.x * width - halfWidth).roundToInt().coerceIn(0, width - 1),
+                (point.y * height - halfHeight).roundToInt().coerceIn(0, height - 1),
+                (point.x * width + halfWidth).roundToInt().coerceIn(1, width),
+                (point.y * height + halfHeight).roundToInt().coerceIn(1, height),
+            ).also {
+                if (it.right <= it.left) it.right = (it.left + 1).coerceAtMost(width)
+                if (it.bottom <= it.top) it.bottom = (it.top + 1).coerceAtMost(height)
+            }
+        }
+        return averageY(image, rect)
+    }
+
+    private fun averageY(image: ImageProxy, rect: android.graphics.Rect): Double {
+        val plane = image.planes[0]
+        val buffer = plane.buffer
+        val step = sqrt((rect.width().toDouble() * rect.height() / 20_000.0))
+            .roundToInt()
+            .coerceAtLeast(1)
+        var sum = 0L
+        var count = 0L
+        var y = rect.top
+        while (y < rect.bottom) {
+            val rowStart = y * plane.rowStride
+            var x = rect.left
+            while (x < rect.right) {
+                val index = rowStart + x * plane.pixelStride
+                if (index in 0 until buffer.capacity()) {
+                    sum += buffer.get(index).toInt() and 0xFF
+                    count++
+                }
+                x += step
+            }
+            y += step
+        }
+        return if (count == 0L) 0.0 else sum.toDouble() / count
+    }
+
+    private fun displayToImagePoint(x: Float, y: Float, rotationDegrees: Int): PointF = when (rotationDegrees) {
+        90 -> PointF(y, 1f - x)
+        180 -> PointF(1f - x, 1f - y)
+        270 -> PointF(1f - y, x)
+        else -> PointF(x, y)
+    }
+
+    private fun exposureFor(imageTimestampNanos: Long): LatestExposure? = synchronized(exposureHistory) {
+        if (exposureHistory.isEmpty()) return@synchronized null
+        if (imageTimestampNanos <= 0L) return@synchronized exposureHistory.peekLast()
+        exposureHistory.minByOrNull { exposure ->
+            if (exposure.timestampNanos <= 0L) Long.MAX_VALUE
+            else abs(exposure.timestampNanos - imageTimestampNanos)
+        }
     }
 
     private data class ResolvedCameraSetup(
         val fixedAperture: Float?,
         val preferredFpsRange: Range<Int>?,
+    )
+
+    private data class LatestExposure(
+        val aperture: Double,
+        val exposureSeconds: Double,
+        val iso: Int,
+        val timestampNanos: Long,
     )
 
     private fun findFixedAperture(cameraId: String): Float? = runCatching {

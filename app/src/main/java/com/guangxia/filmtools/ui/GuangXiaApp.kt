@@ -1,5 +1,8 @@
 package com.guangxia.filmtools.ui
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -80,7 +83,7 @@ fun GuangXiaApp(viewModel: MainViewModel) {
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = destination.accent,
                             selectedTextColor = destination.accent,
-                            indicatorColor = Color.Transparent,
+                            indicatorColor = destination.accent.copy(alpha = 0.14f),
                             unselectedIconColor = Muted,
                             unselectedTextColor = Muted,
                         ),
@@ -90,7 +93,10 @@ fun GuangXiaApp(viewModel: MainViewModel) {
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            NavHost(navController = navController, startDestination = "meter") {
+            NavHost(navController = navController, startDestination = "meter",
+                enterTransition = { fadeIn(animationSpec = tween(250)) },
+                exitTransition = { fadeOut(animationSpec = tween(200)) },
+            ) {
                 composable("meter") {
                     val reading by viewModel.meterReading.collectAsStateWithLifecycle()
                     val cameraError by viewModel.cameraError.collectAsStateWithLifecycle()

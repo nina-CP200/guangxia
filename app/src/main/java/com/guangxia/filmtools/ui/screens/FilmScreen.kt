@@ -1,6 +1,7 @@
 package com.guangxia.filmtools.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +24,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -47,7 +48,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,6 +60,7 @@ import com.guangxia.filmtools.data.CameraEntity
 import com.guangxia.filmtools.data.CameraWithRolls
 import com.guangxia.filmtools.data.FilmRollEntity
 import com.guangxia.filmtools.ui.MainViewModel
+import com.guangxia.filmtools.ui.components.GuangXiaDialog
 import com.guangxia.filmtools.ui.components.InstrumentPanel
 import com.guangxia.filmtools.ui.components.ScreenHeader
 import com.guangxia.filmtools.ui.theme.Carbon
@@ -96,9 +102,29 @@ fun FilmScreen(cameras: List<CameraWithRolls>, viewModel: MainViewModel) {
             }
             if (cameras.isEmpty()) {
                 item {
-                    InstrumentPanel(Modifier.padding(horizontal = 16.dp)) {
-                        Text("还没有相机", style = MaterialTheme.typography.headlineMedium)
-                        Text("先建立一张相机卡片，再记录装入的胶卷。", color = Muted, modifier = Modifier.padding(top = 6.dp))
+                    Box(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Canvas(Modifier.size(96.dp)) {
+                                val c = center
+                                val w = 64.dp.toPx()
+                                val h = 40.dp.toPx()
+                                val r = CornerRadius(6.dp.toPx())
+                                drawRoundRect(accent.copy(alpha = 0.2f), Offset(c.x - w / 2, c.y - h / 2), size, r, style = Stroke(2.dp.toPx()))
+                                val r2 = CornerRadius(4.dp.toPx())
+                                drawRoundRect(accent.copy(alpha = 0.35f), Offset(c.x - 16.dp.toPx(), c.y - 14.dp.toPx()), Size(32.dp.toPx(), 14.dp.toPx()), r2, style = Stroke(1.5.dp.toPx()))
+                                drawCircle(accent.copy(alpha = 0.35f), 5.dp.toPx(), Offset(c.x, c.y + 4.dp.toPx()), style = Stroke(1.5.dp.toPx()))
+                            }
+                            Text("还没有相机", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 16.dp))
+                            Text("先建立相机卡片，再记录装入的胶卷。", color = Muted, modifier = Modifier.padding(top = 8.dp))
+                            Button(
+                                onClick = { showNewCamera = true },
+                                modifier = Modifier.padding(top = 20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Carbon),
+                            ) { Text("添加相机") }
+                        }
                     }
                 }
             } else {
@@ -128,11 +154,8 @@ fun FilmScreen(cameras: List<CameraWithRolls>, viewModel: MainViewModel) {
         }
     }
     deletingCamera?.let { camera ->
-        AlertDialog(
+        GuangXiaDialog(
             onDismissRequest = { deletingCamera = null },
-            shape = RoundedCornerShape(28.dp),
-            containerColor = Panel,
-            tonalElevation = 0.dp,
             title = { Text("删除 ${camera.name}？") },
             text = { Text("这会同时删除该相机的当前胶卷与全部历史记录，无法撤销。") },
             confirmButton = { TextButton(onClick = { viewModel.deleteCamera(camera); deletingCamera = null }, colors = ButtonDefaults.textButtonColors(contentColor = Danger)) { Text("删除") } },
@@ -235,11 +258,8 @@ private fun CameraCard(
 private fun CameraDialog(existing: CameraEntity?, onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
     var name by rememberSaveable(existing?.id) { mutableStateOf(existing?.name ?: "") }
     var model by rememberSaveable(existing?.id) { mutableStateOf(existing?.model ?: "") }
-    AlertDialog(
+    GuangXiaDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = Panel,
-        tonalElevation = 0.dp,
         title = { Text(if (existing == null) "添加相机" else "编辑相机") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -264,11 +284,8 @@ private fun FilmDialog(cameraId: Long, existing: FilmRollEntity?, onDismiss: () 
     val isoValue = iso.toIntOrNull()
     val unloadValid = existing?.unloadedEpochDay == null || (unloadedEpochDay != null && epochDay != null && unloadedEpochDay >= epochDay)
     val valid = filmType.isNotBlank() && isoValue != null && isoValue in 1..25600 && epochDay != null && unloadValid
-    AlertDialog(
+    GuangXiaDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = Panel,
-        tonalElevation = 0.dp,
         title = { Text(if (existing == null) "装入胶卷" else "编辑胶卷") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -295,11 +312,8 @@ private fun UnloadDialog(film: FilmRollEntity, onDismiss: () -> Unit, onConfirm:
     var date by rememberSaveable(film.id) { mutableStateOf(LocalDate.now().toString()) }
     val epochDay = parseEpochDay(date)
     val valid = epochDay != null && epochDay >= film.loadedEpochDay
-    AlertDialog(
+    GuangXiaDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = Panel,
-        tonalElevation = 0.dp,
         title = { Text("卸下 ${film.filmType}") },
         text = {
             Column {
